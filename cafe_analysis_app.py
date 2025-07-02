@@ -13,35 +13,31 @@ from tensorflow.keras.models import load_model
 tokenizer = AutoTokenizer.from_pretrained('nlptown/bert-base-multilingual-uncased-sentiment')
 sentiment_model = AutoModelForSequenceClassification.from_pretrained('nlptown/bert-base-multilingual-uncased-sentiment')
 
-# Load image classification model
-image_model = load_model('restaurant_rating_model.h5')  # Ensure the model is in the same directory
-
 # Initialize Google Maps API
 gmaps = googlemaps.Client(key='AIzaSyB1jm6Nl44nMnIZqX9qzx0up_lUro5QyfA')  # Replace with your Google Maps API key
 
+import gdown
 import os
-import requests
+from tensorflow.keras.models import load_model
+import tempfile
 
-def download_model(model_url, model_path):
-    if not os.path.exists(model_path):
-        print(f"Downloading model from {model_url}...")
-        response = requests.get(model_url, stream=True)
-        with open(model_path, "wb") as file:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
-        print(f"Model downloaded to {model_path}.")
-    else:
-        print("Model already exists locally.")
+def load_model_from_drive():
+    file_id = "1hGJXbPd9bg5-GAxjJbOWiYSZeYc1jRHP"
+    url = f"https://drive.google.com/uc?id={file_id}"
 
-# URLs for models
-model_h5_url = "https://drive.google.com/file/d/1hGJXbPd9bg5-GAxjJbOWiYSZeYc1jRHP/view?usp=sharing"
+    # Create a low-level temp file and close it so gdown can write to it
+    fd, path = tempfile.mkstemp(suffix=".h5")
+    os.close(fd)
 
-# Paths to save the models locally
-model_h5_path = "restaurant_rating_model.h5"
+    try:
+        gdown.download(url, path, quiet=False)
+        model = load_model(path)
+        return model
+    finally:
+        os.remove(path)  # Clean up temp file
 
-# Download models if not present
-download_model(model_h5_url, model_h5_path)
-
+# Load image classification model
+image_model = load_model_from_drive()
 # Streamlit app setup
 st.title("Cafe & Tourist Spot Recommender")
 st.write("Enter a location to find nearby cafes and attractions that match your preferences.")
