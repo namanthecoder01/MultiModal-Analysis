@@ -2,9 +2,8 @@ streamlit
 pandas
 torch
 transformers
-requests
 pillow
-matplotlib
 numpy
 googlemaps
 tensorflow
+requests
