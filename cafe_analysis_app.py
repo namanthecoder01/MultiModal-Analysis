@@ -1,43 +1,28 @@
 import streamlit as st
+import requests
 import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import requests
 from PIL import Image
 from io import BytesIO
 import numpy as np
 import googlemaps
-from tensorflow.keras.models import load_model
+import tensorflow as tf
 
 # Load sentiment analysis model
 tokenizer = AutoTokenizer.from_pretrained('nlptown/bert-base-multilingual-uncased-sentiment')
 sentiment_model = AutoModelForSequenceClassification.from_pretrained('nlptown/bert-base-multilingual-uncased-sentiment')
 
+# Load image classification model
+interpreter = tf.lite.Interpreter(model_path="restaurant_model_quantized.tflite")
+interpreter.allocate_tensors()
+
 # Initialize Google Maps API
 gmaps = googlemaps.Client(key='AIzaSyB1jm6Nl44nMnIZqX9qzx0up_lUro5QyfA')  # Replace with your Google Maps API key
 
-import gdown
-import os
-from tensorflow.keras.models import load_model
-import tempfile
+# Paths to save the models locally
+model_path = "restaurant_model_quantized.tflite"
 
-def load_model_from_drive():
-    file_id = "1hGJXbPd9bg5-GAxjJbOWiYSZeYc1jRHP"
-    url = f"https://drive.google.com/uc?id={file_id}"
-
-    # Create a low-level temp file and close it so gdown can write to it
-    fd, path = tempfile.mkstemp(suffix=".h5")
-    os.close(fd)
-
-    try:
-        gdown.download(url, path, quiet=False)
-        model = load_model(path)
-        return model
-    finally:
-        os.remove(path)  # Clean up temp file
-
-# Load image classification model
-image_model = load_model_from_drive()
 # Streamlit app setup
 st.title("Cafe & Tourist Spot Recommender")
 st.write("Enter a location to find nearby cafes and attractions that match your preferences.")
@@ -111,10 +96,15 @@ if place_name:
                     img = img.convert('RGB')
 
                 img = img.resize((224, 224))
-                img_array = np.array(img) / 255.0
+                img_array = np.array(img, dtype=np.float32) / 255.0
                 img_array = np.expand_dims(img_array, axis=0)
 
-                predictions = image_model.predict(img_array)
+                input_details = interpreter.get_input_details()
+                output_details = interpreter.get_output_details()
+
+                interpreter.set_tensor(input_details[0]['index'], img_array)
+                interpreter.invoke()
+                predictions = interpreter.get_tensor(output_details[0]['index'])
                 return np.argmax(predictions)
 
 
